@@ -5,7 +5,7 @@ import { SideBarMenu } from "./components/SidebarMenu";
 import React from "react";
 
 function App() {
-  const [collapsed, setCollapsed] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(true);
   function toggleCollapsed() {
     setCollapsed(!collapsed);
   }
