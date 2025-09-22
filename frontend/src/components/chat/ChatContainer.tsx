@@ -2,65 +2,10 @@ import { List } from "antd";
 import { Content } from "antd/es/layout/layout";
 import React from "react";
 import { ChatBubble } from "./ChatBubble";
-import { SENDER } from "@/types/system";
 import { ChatInput } from "./ChatInput";
-
 export const ChatContainer = () => {
-  const [messages, setMessages] = React.useState([
-    { sender: SENDER.AI, text: "Hello! How can I help you today?" },
-    {
-      sender: SENDER.USER,
-      text: "I'm looking for a way to build a chat interface.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-    {
-      sender: SENDER.AI,
-      text: "You've come to the right place! This component will get you started.",
-    },
-  ]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [messages, setMessages] = React.useState<any[]>([]);
   const chatContainerRef = React.useRef(null);
 
   // Auto-scroll to the latest message
@@ -71,16 +16,6 @@ export const ChatContainer = () => {
       ).scrollHeight;
     }
   }, [messages]);
-
-  function handleSendMessage(message: string) {
-    setMessages([
-      ...messages,
-      {
-        sender: SENDER.USER,
-        text: message,
-      },
-    ]);
-  }
 
   return (
     <Content
@@ -105,7 +40,7 @@ export const ChatContainer = () => {
         />
       </div>
 
-      <ChatInput onSend={handleSendMessage} />
+      <ChatInput setMessages={setMessages} />
     </Content>
   );
 };

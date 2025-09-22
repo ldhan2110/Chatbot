@@ -1,11 +1,22 @@
 from fastapi import FastAPI
-from models.prompt import Prompt
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from services.chat import ChatService
 
 app = FastAPI()
 
-@app.post("/chat")
-async def chat(prompt: Prompt) -> str:
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/chat/stream")
+async def chat(prompt: str) -> StreamingResponse:
     chat_service = ChatService(thread_id=1)
-    result = await chat_service.chat(prompt.prompt)
-    return result.output
+    return await chat_service.chat_stream(prompt=prompt)

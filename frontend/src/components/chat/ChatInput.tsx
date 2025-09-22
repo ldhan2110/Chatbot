@@ -1,3 +1,4 @@
+import { SENDER } from "@/types/system";
 import {
   AudioOutlined,
   FileTextOutlined,
@@ -11,14 +12,58 @@ import React from "react";
 
 type ChatInputProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onSend: (value: any) => void;
+  setMessages: React.Dispatch<React.SetStateAction<any[]>>;
 };
 
-export const ChatInput = ({ onSend }: ChatInputProps) => {
+export const ChatInput = ({ setMessages }: ChatInputProps) => {
   const [inputValue, setInputValue] = React.useState("");
   const handleSend = () => {
     if (!inputValue.trim()) return;
-    onSend(inputValue);
+    setMessages((prev) => [
+      ...prev,
+      {
+        text: inputValue,
+        sender: SENDER.USER,
+      },
+      { sender: SENDER.AI, text: "" },
+    ]);
+    const evtSource = new EventSource(
+      `http://localhost:8000/chat/stream?prompt=${encodeURIComponent(
+        inputValue
+      )}`
+    );
+
+    evtSource.addEventListener("ai_message", (event) => {
+      const data = JSON.parse(event.data);
+      console.log(data.chunk.content);
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+
+        if (last && last.sender === SENDER.AI) {
+          // Append chunk to last AI message
+          return [
+            ...prev.slice(0, -1),
+            { ...last, text: last.text + data.chunk.content },
+          ];
+        }
+
+        // Start new AI message with empty text,
+        // then append first chunk in the next render
+        return [...prev, { sender: SENDER.AI, text: data.chunk.content }];
+      });
+    });
+
+    evtSource.addEventListener("done", () => {
+      console.log("Stream finished");
+      evtSource.close();
+    });
+
+    evtSource.onerror = (error) => {
+      console.error("SSE error:", error);
+      evtSource.close();
+    };
+
+    // push placeholder for streamed response
     setInputValue("");
   };
   return (
