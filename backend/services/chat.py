@@ -3,10 +3,12 @@ from fastapi.responses import StreamingResponse
 from agents.chat.agent import chat_agent
 from agents.chat.deps import ChatDeps
 from services.streaming import format_sse, stream_agent_text
+from sqlalchemy.ext.asyncio import AsyncSession
+from repositories.conversation import ConversationRepository
 
 class ChatService:
-    def __init__(self, thread_id: str) -> None:
-        self.thread_id = thread_id
+    def __init__(self, session: AsyncSession) -> None:
+        self.conversation_repo = ConversationRepository(session)
         self.chat_agent = chat_agent
 
     async def chat_stream(self, prompt: str) -> StreamingResponse:
