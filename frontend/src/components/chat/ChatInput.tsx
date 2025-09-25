@@ -1,4 +1,5 @@
-import { SENDER } from "@/types/system";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { MessageRole, type ChatMessage } from "@/types/system";
 import {
   AudioOutlined,
   FileTextOutlined,
@@ -9,6 +10,8 @@ import {
 } from "@ant-design/icons";
 import { Button, Flex, Input, Tooltip } from "antd";
 import React from "react";
+import { sendChat } from "../services";
+import { useChatStore } from "@/stores";
 
 type ChatInputProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,55 +19,166 @@ type ChatInputProps = {
 };
 
 export const ChatInput = ({ setMessages }: ChatInputProps) => {
+  const { currentConversationId, setCurrentConversation } = useChatStore();
   const [inputValue, setInputValue] = React.useState("");
-  const handleSend = () => {
+  const [isStreaming, setIsStreaming] = React.useState<boolean>(false);
+
+  const handleSend = async () => {
     if (!inputValue.trim()) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        text: inputValue,
-        sender: SENDER.USER,
-      },
-      { sender: SENDER.AI, text: "" },
-    ]);
-    const evtSource = new EventSource(
-      `http://localhost:8000/chat/stream?prompt=${encodeURIComponent(
-        inputValue
-      )}`
-    );
+    setIsStreaming(true);
 
-    evtSource.addEventListener("ai_message", (event) => {
-      const data = JSON.parse(event.data);
-      console.log(data.chunk.content);
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-
-        if (last && last.sender === SENDER.AI) {
-          // Append chunk to last AI message
-          return [
-            ...prev.slice(0, -1),
-            { ...last, text: last.text + data.chunk.content },
-          ];
-        }
-
-        // Start new AI message with empty text,
-        // then append first chunk in the next render
-        return [...prev, { sender: SENDER.AI, text: data.chunk.content }];
-      });
-    });
-
-    evtSource.addEventListener("done", () => {
-      console.log("Stream finished");
-      evtSource.close();
-    });
-
-    evtSource.onerror = (error) => {
-      console.error("SSE error:", error);
-      evtSource.close();
+    const usrMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: MessageRole.USER,
+      content: inputValue,
+    };
+    const assistantMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: MessageRole.ASSISTANT,
+      content: "",
     };
 
-    // push placeholder for streamed response
+    setMessages((prev) => [...prev, usrMsg, assistantMsg]);
     setInputValue("");
+
+    // Send Request
+    const ac = new AbortController();
+    const res = await sendChat(
+      {
+        conversation_id: currentConversationId,
+        message: usrMsg.content,
+      },
+      ac
+    );
+
+    const reader = res.body?.getReader();
+    if (!reader) {
+      throw new Error("ReadableStream is not available in this response");
+    }
+
+    const decoder: TextDecoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    // Read SSE stream manually and parse events
+    //let sseError: Error | null = null;
+
+    const commitChunk = (chunkContent: string) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMsg.id
+            ? { ...m, content: m.content + chunkContent }
+            : m
+        )
+      );
+    };
+
+    while (true) {
+      const { done, value: chunk } = await reader.read();
+      if (done) break;
+      const bytes: any = chunk as any;
+      buffer += decoder.decode(bytes, { stream: true });
+
+      // Process complete SSE messages separated by double newlines
+      let idx: number;
+      while ((idx = buffer.indexOf("\n\n")) !== -1) {
+        const rawEvent = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+
+        // Parse event name and data lines
+        const lines = rawEvent.split(/\r?\n/);
+        let eventName = "message";
+        const dataLines: string[] = [];
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trim());
+          }
+        }
+        const dataStr = dataLines.join("\n");
+
+        console.log(eventName, dataStr);
+
+        if (eventName === "conversation_created") {
+          try {
+            const parsed = JSON.parse(dataStr) as {
+              conversation_id?: string;
+            };
+            const cid = parsed?.conversation_id;
+            if (cid) {
+              setCurrentConversation(cid);
+            }
+          } catch {
+            // ignore navigation errors
+          }
+        } else if (eventName === "ai_message") {
+          try {
+            const parsed = JSON.parse(dataStr) as {
+              chunk?: { content?: string };
+            };
+            const chunk = parsed?.chunk?.content ?? "";
+            if (chunk) {
+              commitChunk(chunk);
+            }
+          } catch {
+            // ignore parse errors per chunk
+          }
+        } else if (eventName === "error") {
+          try {
+            const err = JSON.parse(dataStr) as any;
+            const detailsStr =
+              typeof err?.details === "string" ? (err.details as string) : "";
+            // Try to extract retry delay from provider details, e.g. "retryDelay': '55s'"
+            const m = detailsStr.match(
+              /retryDelay['\\"]?\s*:\s*['\\"](?<sec>\d+)s['\\"]/
+            );
+            const sec =
+              m && m.groups && m.groups.sec ? Number(m.groups.sec) : undefined;
+            const friendly =
+              typeof sec === "number"
+                ? `Hệ thống đang quá tải tạm thời. Vui lòng thử lại sau khoảng ${sec} giây.`
+                : "Hệ thống đang quá tải tạm thời. Vui lòng thử lại sau ít phút.";
+            //sseErrorInfo = { message: friendly, retryAfterSec: sec };
+            // Show banner immediately for better UX
+            //setErrorNotice({ message: friendly, retryAfterSec: sec });
+            // Ensure assistant bubble shows a friendly message instead of AbortError
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsg.id
+                  ? {
+                      ...m,
+                      content:
+                        m.content && m.content.trim().length > 0
+                          ? m.content
+                          : `> ${friendly}`,
+                    }
+                  : m
+              )
+            );
+            // sseError = new Error(friendly);
+            // abort the stream; we'll throw after the loop ends
+            try {
+              ac.abort();
+            } catch {
+              // ignore error aborted
+            }
+          } catch {
+            const friendly = "Something went wrong. Please try it again later.";
+            // sseErrorInfo = { message: friendly };
+            // setErrorNotice({ message: friendly });
+            // sseError = new Error(friendly);
+            console.log(friendly);
+            try {
+              ac.abort();
+            } catch {
+              // ignore error aborted
+            }
+          }
+        }
+      }
+    }
+
+    setIsStreaming(false);
   };
   return (
     <Flex
@@ -116,6 +230,7 @@ export const ChatInput = ({ setMessages }: ChatInputProps) => {
                 type="primary"
                 shape="circle"
                 icon={<SendOutlined />}
+                loading={isStreaming}
                 onClick={handleSend}
               />
             </div>

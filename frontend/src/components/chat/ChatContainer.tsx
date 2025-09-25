@@ -1,11 +1,11 @@
-import { List } from "antd";
+import { ConfigProvider, List } from "antd";
 import { Content } from "antd/es/layout/layout";
 import React from "react";
 import { ChatBubble } from "./ChatBubble";
 import { ChatInput } from "./ChatInput";
+import type { ChatMessage } from "@/types/system";
 export const ChatContainer = () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [messages, setMessages] = React.useState<any[]>([]);
+  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const chatContainerRef = React.useRef(null);
 
   // Auto-scroll to the latest message
@@ -24,23 +24,31 @@ export const ChatContainer = () => {
         height: "calc(100vh - 65px)",
       }}
     >
-      <div
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto pl-[200px] pr-[200px] no-scrollbar bg-white"
+      <ConfigProvider
+        renderEmpty={() => (
+          <div className="text-center flex flex-col justify-center h-[calc(100vh-300px)] gap-0.5">
+            <h1 className="text-3xl font-semibold text-blue-500">Welcome!</h1>
+            <p className="text-xl text-gray-300">BluePrint Agents for CLT</p>
+          </div>
+        )}
       >
-        <List
-          style={{
-            padding: "8px 32px",
-          }}
-          itemLayout="horizontal"
-          dataSource={messages}
-          renderItem={(item) => (
-            <ChatBubble sender={item.sender} message={item.text} />
-          )}
-        />
-      </div>
-
-      <ChatInput setMessages={setMessages} />
+        <div
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto pl-[200px] pr-[200px] no-scrollbar bg-white"
+        >
+          <List
+            style={{
+              padding: "8px 32px",
+            }}
+            itemLayout="horizontal"
+            dataSource={messages}
+            renderItem={(item) => (
+              <ChatBubble sender={item.role} message={item.content} />
+            )}
+          />
+        </div>
+        <ChatInput setMessages={setMessages} />
+      </ConfigProvider>
     </Content>
   );
 };
