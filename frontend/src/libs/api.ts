@@ -6,7 +6,7 @@ export function getApiBaseUrl(): string {
     const urlWithProtocol = hasProtocol ? fromEnv : `https://${fromEnv}`;
     return urlWithProtocol.replace(/\/$/, "");
   }
-  return "http://localhost:8000"; // FastAPI default port
+  return "http://localhost:8000/api"; // FastAPI default port
 }
 
 export function getChatSseUrl(): string {

@@ -1,9 +1,25 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { MessageRole } from "@/types/system";
-import { Avatar, Card, List, Space, Typography } from "antd";
+import { Avatar, Card, List, Space } from "antd";
+import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 
 type ChatBubbleProps = {
   sender: MessageRole;
   message: string;
+};
+
+const components = {
+  code({ inline, className, children, ...props }: any) {
+    const match = /language-(\w+)/.exec(className || "");
+    return !inline && match ? (
+      <SyntaxHighlighter language={match[1]} PreTag="div" {...props}>
+        {String(children).replace(/\n$/, "")}
+      </SyntaxHighlighter>
+    ) : (
+      <code {...props}>{children}</code>
+    );
+  },
 };
 
 export const ChatBubble = ({ sender, message }: ChatBubbleProps) => {
@@ -47,7 +63,7 @@ export const ChatBubble = ({ sender, message }: ChatBubbleProps) => {
           }}
           bodyStyle={{ padding: "12px 16px" }}
         >
-          <Typography.Text>{message}</Typography.Text>
+          <ReactMarkdown components={components}>{message}</ReactMarkdown>
         </Card>
       </Space>
     </List.Item>
