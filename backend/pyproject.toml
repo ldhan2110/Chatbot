@@ -13,4 +13,7 @@ dependencies = [
     "sqlalchemy>=2.0.43",
     "sqlmodel>=0.0.25",
     "asyncpg>=0.30.0",
+    "oracledb>=3.3.0",
+    "pgvector>=0.4.1",
+    "json5>=0.12.1",
 ]

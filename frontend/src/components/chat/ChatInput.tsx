@@ -124,6 +124,7 @@ export const ChatInput = ({ setMessages }: ChatInputProps) => {
             // ignore parse errors per chunk
           }
         } else if (eventName === "error") {
+          setIsStreaming(false);
           try {
             const err = JSON.parse(dataStr) as any;
             const detailsStr =

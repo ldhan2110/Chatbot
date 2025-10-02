@@ -1,9 +1,6 @@
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from models.prompt import Conversation
-from router import chat_router
-from services.chat import ChatService
+from core.router.chat_router import chat_router
 
 app = FastAPI()
 
@@ -12,6 +9,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost",
         "http://localhost:3000",
+        'https://localhost:8443'
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -19,9 +17,4 @@ app.add_middleware(
 )
 
 # Protected routes
-app.include_router(chat_router.router)
-
-@app.get("/chat/stream")
-async def chat(prompt: str) -> StreamingResponse:
-    chat_service = ChatService(thread_id=1)
-    return await chat_service.chat_stream(prompt=prompt)
+app.include_router(chat_router)

@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 @dataclass
 class ChatDeps:
     current_datetime: str = field(
-        default_factory=lambda: (datetime.now().astimezone().strftime("%B %d, %Y at %I:%M %p %Z"))
+        default_factory=lambda: (
+            datetime.now().astimezone().strftime("%B %d, %Y at %I:%M %p %Z"))
     )
 
     @property
